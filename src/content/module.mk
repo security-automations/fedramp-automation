@@ -7,7 +7,7 @@ FORMATS := xml yaml json
 
 # Install dependencies
 init-content:
-	npm install oscal
+	npm install oscal -g
 
 # Build and validate content
 build-content:
