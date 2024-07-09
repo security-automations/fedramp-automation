@@ -1,26 +1,76 @@
-# These targets will build src/content, using OSCAL's CI/CD build tools.
-# Docker is utilized for a build environment.
-# These build targets are not part of the standard test/build cycle. Instead,
-# they are intended to be run via a Github Action workflow.
+.PHONY: init-content build-content test-content
 
-CONTENT_DIR := src/content
-MNT := /code
-OSCAL_DIR := vendor/oscal
-CICD_DIR_PATH := $(OSCAL_DIR)/build/ci-cd
-CONTENT_CONFIG_PATH := src/config
+# Variables
+SRC_DIR := src/content
+DIST_DIR := dist/content
+FORMATS := xml yaml json
 
-OSCAL_DOCKER := docker-compose -f $(OSCAL_DIR)/build/docker-compose.yml -f $(CONTENT_DIR)/docker-compose.yml
+# Install dependencies
+init-content:
+	npm install oscal
 
-init-content:  ## Initialize content build environment (build Docker image)
-	@echo "Building Docker image for OSCAL content generation..."
-	$(OSCAL_DOCKER) build
+# Build and validate content
+build-content:
+	@echo "Converting and validating content..."
+	@bash -c '
+		set -e
+		SRC_DIR="$(SRC_DIR)"
+		DIST_DIR="$(DIST_DIR)"
+		FORMATS="$(FORMATS)"
 
-test-content:  ## Test src/content
-	@echo "Testing content..."
-	$(OSCAL_DOCKER) run cli $(MNT)/$(CICD_DIR_PATH)/validate-content.sh -v -o $(MNT)/$(OSCAL_DIR) -a $(MNT) -c $(MNT)/$(CONTENT_CONFIG_PATH)
+		# Create dist directory if it does not exist
+		mkdir -p "$$DIST_DIR"
 
-build-content:  ## Build dist/content
-	@echo "Building content..."
-	$(OSCAL_DOCKER) run cli $(MNT)/$(CICD_DIR_PATH)/copy-and-convert-content.sh -v -o $(MNT)/$(OSCAL_DIR) -a $(MNT) -c $(MNT)/$(CONTENT_CONFIG_PATH) -w $(MNT)/dist --resolve-profiles
-	cp -R $(CONTENT_DIR)/rev4/resources/xml/. dist/content/rev4/resources/xml
-	cp -R $(CONTENT_DIR)/rev5/resources/xml/. dist/content/rev5/resources/xml
+		# Create format-specific directories
+		for format in $$FORMATS; do
+			mkdir -p "$$DIST_DIR/$$format"
+		done
+
+		# Function to process files
+		process_file() {
+			local file="$$1"
+			local rel_path="$${file#$$SRC_DIR/}"
+			
+			for format in $$FORMATS; do
+				output_path="$$DIST_DIR/$$format/$$rel_path"
+				output_dir="$$(dirname "$$output_path")"
+				
+				# Create output directory if it does not exist
+				mkdir -p "$$output_dir"
+				
+				# Convert file
+				npx oscal convert -f "$$file" -o "$$output_path"
+				echo "Converted $$file to $$format"
+				
+				# Validate converted file
+				if npx oscal validate -f "$$output_path"; then
+					echo "Validated $$output_path"
+				else
+					echo "Validation failed for $$output_path"
+				fi
+				
+				# Validate with FedRAMP extension
+				if npx oscal validate -f "$$output_path" -e fedramp; then
+					echo "Validated $$output_path with FedRAMP extension"
+				else
+					echo "FedRAMP validation failed for $$output_path"
+				fi
+			done
+		}
+
+		# Export the function so it can be used in find
+		export -f process_file
+
+		# Process all files
+		find "$$SRC_DIR" -type f -exec bash -c "process_file \"{}\"" \;
+
+		echo "Conversion and validation completed."
+	'
+
+# Additional tests if needed
+test-content:
+	@echo "Running additional tests..."
+	# Add any additional test commands here
+
+# Default target
+all: init-content build-content test-content
