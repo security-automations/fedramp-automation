@@ -2955,13 +2955,6 @@
             <prop name="type" value="logo"/>
             <rlink href="https://www.fedramp.gov/assets/img/logo-main-fedramp.png"/>
         </resource>
-        <!-- 
-        <resource uuid="023794ee-3e2a-4700-ada3-e6ed14a30e1b">
-            <title>NIST Special Publication (SP) 800-53</title>
-            <prop name="version" value="5.1.1"/>
-            <rlink media-type="application/oscal+xml" href="https://raw.githubusercontent.com/usnistgov/oscal-content/v1.2.0/nist.gov/SP800-53/rev5/xml/NIST_SP-800-53_rev5_catalog.xml"/>
-        </resource>
-        -->
         <resource uuid="023794ee-3e2a-4700-ada3-e6ed14a30e1b">
             <title>NIST Special Publication (SP) 800-53</title>
             <prop name="version" value="5.1.1"/>
